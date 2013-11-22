@@ -4,7 +4,7 @@ class ModelData:
     def __init__(self):
         pass
         
-    def get(self, name, seed, step, info, params):
+    def get(self, name, seed, step, info, params={}):
         model = getattr(models, name)(seed)
         
         for k,v in params.items():
