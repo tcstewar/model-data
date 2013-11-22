@@ -59,16 +59,31 @@ to support the following:
  - specify a list of seeds (and get data back for all of them)
  
  ```python
- print md.get('PredatorPrey, seed=[1, 9, 10, 11], step=20, info=['x','y'])
+print md.get('PredatorPrey, seed=[1, 9, 10, 11], step=20, info=['x','y'])
  ```
  
  - specify a list of steps 
  
  ```python
- print md.get('PredatorPrey, seed=10, steps=[0, 5, 10, 15, 20], info=['x','y'])
+print md.get('PredatorPrey, seed=10, steps=[0, 5, 10, 15, 20], info=['x','y'])
  ```
  
  - both of the above at the same time
  
  Ideally, this sort of use could take advantage of parallel computing, running
  the different seeds on different cores or machines, since they are independent.
+ 
+ In an efficient implementation, note that Models can be kept around (they
+ should even be serializable).  This means that there may be situations where
+ if someone changes a parameter setting after time step 100, the system might
+ still have a version of the model kept around that's sitting at time step 80
+ that could be run instead, rather than starting a new model from the
+ beginning.  This is likely to be a common usage scenario:
+ 
+ ```python
+ print md.get('PredatorPrey, seed=10, step=200, info=['x','y'],
+              params=dict(r=1))
+ print md.get('PredatorPrey, seed=10, step=200, info=['x','y'],
+              params=dict(r=lambda step: 1 if step<100 else 2))
+ ``` 
+ 
