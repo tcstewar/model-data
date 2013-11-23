@@ -24,4 +24,7 @@ class ModelData:
 if __name__ == '__main__':
     import math
     md = ModelData()
-    print md.get('PredatorPrey', 1, 10, ['x', 'y'], dict(x=2, y=2, d=lambda t: 2+math.sin(0.01*t)))
+    print md.get('Lightbulb', 1, 10, ['cfl', 'led'])
+    
+    #for i in range(100):
+    #    print md.get('PredatorPrey', 1, 10*i, ['predator', 'prey'], params=dict(p=0.1))

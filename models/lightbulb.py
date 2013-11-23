@@ -1,56 +1,22 @@
-weight_high = 4
-weight_med = 2
-weight_low = 1
-pop_size = 250
-adopters_of_cfl = 0.6
-cfl_lamps_for_adopters = 0.2
-halogen_prob = 0.2
-change_socket_prob = 0.15
-max_usage_per_week = 20
-decision_noise = 0
-years = 10
-show_graph = True
+from .model import Model
 
-import random
 import math
-import modex
-
-price_halflife = {
-    'Incandescent': 100*52,
-    'CFL': 11*52,
-    'Halogen': 50*52,
-    'LED': 5*52,
-    }
-
-
-lum_distribution = [
-    dict(socket='E27', shape='Pear', value=70),
-    dict(socket='E14', shape='Pear', value=7),
-    dict(socket='GU10', shape='Reflector', value=15),
-    dict(socket='G53', shape='Reflector', value=5),
-    dict(socket='R7S', shape='Tubular', value=3),
-    dict(socket='G24d2', shape='Reflector', value=0),
-    ]        
-import random
-import math
-import modex
-
-log = modex.log()
 
 class Person:
-    def __init__(self):
+    def __init__(self, model):
         self.friends = []
+        self.model = model
         self.weight = dict(
-            price = weight_high * random.uniform(0.5, 1.5),
-            efficiency = weight_med * random.uniform(0.5, 1.5),
-            lifetime =  weight_low * random.uniform(0.5, 1.5),
-            friends =  weight_med * random.uniform(0.5, 1.5),
-            cri =  weight_med * random.uniform(0.5, 1.5),
-            output =  weight_low * random.uniform(0.5, 1.5),
-            color =  weight_med * random.uniform(0.5, 1.5),
-            opinion_type =  weight_med * random.uniform(0.5, 1.5),
-            opinion_brand =  weight_low * random.uniform(0.5, 1.5),
-            opinion_model =  weight_low * random.uniform(0.5, 1.5),
+            price = self.model.weight_high * model.rng.uniform(0.5, 1.5),
+            efficiency = self.model.weight_med * model.rng.uniform(0.5, 1.5),
+            lifetime =  self.model.weight_low * model.rng.uniform(0.5, 1.5),
+            friends =  self.model.weight_med * model.rng.uniform(0.5, 1.5),
+            cri =  self.model.weight_med * model.rng.uniform(0.5, 1.5),
+            output =  self.model.weight_low * model.rng.uniform(0.5, 1.5),
+            color =  self.model.weight_med * model.rng.uniform(0.5, 1.5),
+            opinion_type =  self.model.weight_med * model.rng.uniform(0.5, 1.5),
+            opinion_brand =  self.model.weight_low * model.rng.uniform(0.5, 1.5),
+            opinion_model =  self.model.weight_low * model.rng.uniform(0.5, 1.5),
             )
         self.opinions = dict(
             type = dict(),
@@ -64,37 +30,37 @@ class Person:
         # TODO: fix this distribution to (Bartlett 1993)
         
         
-        is_cfl = random.random() < adopters_of_cfl
+        is_cfl = self.model.rng.rand() < self.model.adopters_of_cfl
         
-        count = int(random.uniform(5, 65))
+        count = int(self.model.rng.uniform(5, 65))
         
         while len(self.luminaires)<count:
-            if random.random()< halogen_prob:
+            if self.model.rng.rand()< self.model.halogen_prob:
                 type = 'Halogen'
             else:    
                 type = 'Incandescent'
                 if is_cfl:
-                    if random.random() < cfl_lamps_for_adopters:
+                    if self.model.rng.rand() < self.model.cfl_lamps_for_adopters:
                         type = 'CFL'
                         
             if type == 'Incandescent' or type=='CFL':
                 options = []
-                for lum in lum_distribution:
+                for lum in self.model.lum_distribution:
                     if lum['shape']=='Pear':
                         for i in range(lum['value']):
                             options.append(lum)
-                option = random.choice(options)
+                option = self.model.rng.choice(options)
             elif type == 'Halogen':
                 options = []
-                for lum in lum_distribution:
+                for lum in self.model.lum_distribution:
                     for i in range(lum['value']):
                         options.append(lum)
-                option = random.choice(options)
+                option = self.model.rng.choice(options)
 
 
                         
             
-            lamp = lamps.pick(type, option['socket'], option['shape'])
+            lamp = self.model.lamps.pick(type, option['socket'], option['shape'])
             
             if lamp is not None:
                 self.add_lamp(lamp)
@@ -104,9 +70,9 @@ class Person:
         mine.update(lamp)
         u = mine['lifetime_uncertainty']
         mine['expected_lifetime'] = mine['lifetime']
-        mine['lifetime'] = mine['lifetime']*random.uniform(1.0-u, 1.0+u)
-        mine['lifetime'] = mine['lifetime']*random.uniform(0, 1)
-        mine['usage'] = random.uniform(0, max_usage_per_week)
+        mine['lifetime'] = mine['lifetime']*self.model.rng.uniform(1.0-u, 1.0+u)
+        mine['lifetime'] = mine['lifetime']*self.model.rng.uniform(0, 1)
+        mine['usage'] = self.model.rng.uniform(0, self.model.max_usage_per_week)
        
         self.luminaires.append(mine)
             
@@ -143,17 +109,17 @@ class Person:
         socket = lamp['socket']
         shape = lamp['shape']
         
-        change_socket = random.random()<change_socket_prob
+        change_socket = self.model.rng.rand()<self.model.change_socket_prob
         
         options = []
-        for lamp in lamps.lamps:
+        for lamp in self.model.lamps.lamps:
             if change_socket or (lamp['socket']==socket and lamp['shape']==shape):
                 options.append(lamp)
                 
         if len(options)==0:
             print 'cannot find', socket, shape
         
-        utility = [decision_noise*math.log(1.0/random.random()-1.0)]*len(options)
+        utility = [self.model.decision_noise*math.log(1.0/self.model.rng.rand()-1.0)]*len(options)
         for feature in ['price', 'efficiency', 'lifetime', 'cri', 'color', 'output']:            
             values = [opt[feature] for opt in options]
             minv = min(values)
@@ -164,7 +130,7 @@ class Person:
                 if feature in ['price', 'color']:
                     u = -u
                 if feature == 'price':
-                    u *= lamps.price_scale(options[i]['type'])
+                    u *= self.model.lamps.price_scale(options[i]['type'])
                 utility[i] += u*self.weight[feature]
         for i, option in enumerate(options):
             utility[i] += self.opinions['model'].get(option['model'], 0) * self.weight['opinion_model']
@@ -185,8 +151,9 @@ class Person:
 
         
 class People:
-    def __init__(self, size):
-        self.people = [Person() for i in range(size)]
+    def __init__(self, size, model):
+        self.model = model
+        self.people = [Person(model) for i in range(size)]
         #self.make_friends()
         
     def make_friends1(self):
@@ -248,10 +215,11 @@ class People:
         return count            
                 
 class Lamps:
-    def __init__(self):
+    def __init__(self, model):
         self.lamps = []
+        self.model = model
         self.steps = 0
-        for line in open('lamps.csv', 'U').readlines():
+        for line in open('models/lamps.csv', 'U').readlines():
             line = line.strip().split(',')
             lamp = dict(
                 type = line[0],
@@ -273,7 +241,7 @@ class Lamps:
             self.lamps.append(lamp)    
     def pick(self, type, socket, shape):
         lamp_list = list(self.lamps)
-        random.shuffle(lamp_list)
+        self.model.rng.shuffle(lamp_list)
         for lamp in lamp_list:
             if lamp['shape']==shape and lamp['socket']==socket and lamp['type']==type:
                 return lamp
@@ -281,111 +249,60 @@ class Lamps:
     def step(self):
         self.steps += 1
     def price_scale(self, type):
-        return math.exp(-self.steps/float(price_halflife[type]))
+        return math.exp(-self.steps/float(self.model.price_halflife[type]))
+
+
+
+class Lightbulb(Model):
+    # define the parameters
+    weight_high = 4
+    weight_med = 2
+    weight_low = 1
+    pop_size = 250
+    adopters_of_cfl = 0.6
+    cfl_lamps_for_adopters = 0.2
+    halogen_prob = 0.2
+    change_socket_prob = 0.15
+    max_usage_per_week = 20
+    decision_noise = 0
+    years = 10
+    show_graph = True
+    price_halflife = {
+        'Incandescent': 100*52,
+        'CFL': 11*52,
+        'Halogen': 50*52,
+        'LED': 5*52,
+        }
+        
+
+    lum_distribution = [
+        dict(socket='E27', shape='Pear', value=70),
+        dict(socket='E14', shape='Pear', value=7),
+        dict(socket='GU10', shape='Reflector', value=15),
+        dict(socket='G53', shape='Reflector', value=5),
+        dict(socket='R7S', shape='Tubular', value=3),
+        dict(socket='G24d2', shape='Reflector', value=0),
+        ]    
+        
+
                 
         
-class Intervention:
-    def __init__(self, lamps, people):
-        self.lamps = lamps
-        self.people = people
-    
-    def step(self):
-        pass
-        
-class BanIntervention(Intervention):
-    def __init__(self, lamps, people, type, years):
-        Intervention.__init__(self, lamps, people)
-        self.type = type
-        self.years = years
-        self.time = 0
-        self.banlamps = [lamp for lamp in self.lamps.lamps if lamp['type']==type]
-        self.banlamps.sort(key = lambda x: -x['power']/x['output'])
-        self.steps_per_ban = int(years*52/len(self.banlamps))
-    
-    def step(self):
-        self.time += 1
-        if self.time%self.steps_per_ban == 0 and len(self.banlamps)>0:
-            self.lamps.lamps.remove(self.banlamps[0])
-            print 'ban', self.time, self.banlamps[0]
-            del self.banlamps[0]
-
-class TaxIntervention(Intervention):
-    def __init__(self, lamps, people, type, years, max_amount):
-        Intervention.__init__(self, lamps, people)
-        self.type = type
-        self.years = years
-        self.time = 0
-        self.max_amount = max_amount
-        self.affected = [lamp for lamp in self.lamps.lamps if lamp['type']==type]
-        self.dtax = max_amount/(years*52)
-        
-    def step(self):
-        self.time += 1
-        if self.time < self.years*52: 
-            for lamp in self.affected:
-                lamp['price'] += self.dtax
             
-class SubsidyIntervention(Intervention):
-    def __init__(self, lamps, people, type, years, max_amount):
-        Intervention.__init__(self, lamps, people)
-        self.type = type
-        self.years = years
-        self.time = 0
-        self.max_amount = max_amount
-        self.affected = [lamp for lamp in self.lamps.lamps if lamp['type']==type]
-        self.dsubsidy = max_amount/(years*52)
-        self.base = [lamp['price'] for lamp in self.affected]
-        for lamp in self.affected:
-            lamp['price'] *= (1.0-max_amount)
+    def __init__(self, seed):
+        Model.__init__(self, seed)
+        self.lamps = Lamps(self)
+    
+        self.people = People(self.pop_size, self) 
         
     def step(self):
-        self.time += 1
-        if self.time < self.years*52: 
-            for i, lamp in enumerate(self.affected):
-                lamp['price'] += self.dsubsidy*self.base[i]
-            
-            
-    
+        self.people.step() # update everyone's life
+        self.lamps.step()  # burn out the lightbulbs
         
-lamps = Lamps()
-    
-people = People(pop_size) 
-
-interventions = [
-    #BanIntervention(lamps, people, 'Incandescent', 5),
-    #TaxIntervention(lamps, people, 'Incandescent', 5, 200.0),
-    #SubsidyIntervention(lamps, people, 'Incandescent', 5, 0.33),
-    ]
-
-type_incandescent = []
-type_cfl = []
-type_halogen = []
-type_led = []
-time = []
-for y in range(years):
-    type_incandescent.append(people.get_count(type='Incandescent'))
-    type_cfl.append(people.get_count(type='CFL'))    
-    type_halogen.append(people.get_count(type='Halogen'))    
-    type_led.append(people.get_count(type='LED'))    
-    time.append(y)
-    for w in range(52):
-        people.step()
-        lamps.step()
-        for interv in interventions:
-            interv.step()
-    
-    log.time = y
-    log.count_incandescent = people.get_count(type='Incandescent')
-    log.count_cfl = people.get_count(type='CFL')
-    log.count_halogen = people.get_count(type='Halogen')
-    log.count_led = people.get_count(type='LED')
+    def info(self):
+        return dict(
+            incandescent = self.people.get_count(type='Incandescent'),
+            cfl = self.people.get_count(type='CFL'),
+            halogen = self.people.get_count(type='Halogen'),
+            led = self.people.get_count(type='LED'),
+            )
         
-if show_graph:    
-    import pylab
-    pylab.plot(time, type_incandescent, label='Incandescent')    
-    pylab.plot(time, type_cfl, label='CFL') 
-    pylab.plot(time, type_halogen, label='Halogen')       
-    pylab.plot(time, type_led, label='LED')       
-    pylab.legend()
-    pylab.show()
-    
